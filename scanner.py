@@ -40,7 +40,6 @@ def fallback(msg):
 
 def check_ip(ip):
     ip = str(ip)
-    print(ip)
     try:
         result = subprocess.check_output('curl -s -w "%{http_code}\n" --tlsv1.2 -servername fronting.sudoer.net -H "Host: fronting.sudoer.net" --resolve fronting.sudoer.net:443:"' + str(ip) + '" https://fronting.sudoer.net', shell=True, timeout=2)
         print(result)
@@ -48,7 +47,6 @@ def check_ip(ip):
         return False
     if b'200' not in result:
         return False
-    print(ip)
     
     with open('config.json.temp', 'r') as config_template:
         config = str(config_template.read())
@@ -60,12 +58,11 @@ def check_ip(ip):
         config = config.replace('RANDOMHOST', config_data['serverName'])
         with open(f'configs/config.json.{ip}', 'w') as new_config:
             new_config.write(config)
-
-    subprocess.Popen([v2ray_path, '-c', f'configs/config.json.{ip}'], shell=True)
+    subprocess.Popen([v2ray_path, '-c', f'configs/config.json.{ip}'], stdout=subprocess.DEVNULL)
     try:
         t = time.time()
-        result = requests.get('https://scan.sudoer.net', proxies={f'socks5://127.0.0.1:'+port}, timeout=2)
-        print(ip,':',time.time()-t, 'ms')
+        result = requests.get('https://scan.sudoer.net', proxies={'https': f'socks5://127.0.0.1:'+port}, timeout=2)
+        print(ip,':',1000*(time.time()-t), 'ms')
     except Exception as e:
         return False
 
@@ -110,21 +107,19 @@ def parse_config(file_name):
     if not all(key in config_data for key in ['id', 'Host', 'Port', 'path', 'serverName']):
         fallback('config file format is incorrect')
 
-    get_CIDRs()
-    find_working_ips()
-
-
-
 def main():
     global threads, v2ray_path
     args = parser.parse_args()
     parse_config(args.config)
 
-    v2ray_path = Path(args.v2ray_path)
-    if not v2ray_path.exists():
+    v2ray_path = args.v2ray_path
+    if not os.path.exists(v2ray_path):
         fallback('v2ray executable does not exists')
 
     threads = args.threads
+
+    get_CIDRs()
+    find_working_ips()
 
 if __name__ == '__main__':
     main()
