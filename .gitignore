@@ -4,3 +4,4 @@ configs/
 __pycache__/
 test.py
 config.real
+result/

@@ -9,6 +9,7 @@ import sys
 import argparse
 import requests
 import subprocess
+import datetime
 import time
 
 from ipaddress import IPv4Network
@@ -17,6 +18,7 @@ from multiprocessing.pool import ThreadPool
 
 subnet_list = set()
 v2ray_path = ''
+result_name = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M_result.txt')
 config_data = {}
 threads = 8
 
@@ -36,6 +38,8 @@ parser.add_argument('-t', '--threads', help='number of desired threads', default
 
 if not os.path.isdir('configs'):
     os.mkdir('configs')
+if not os.path.isdir('result'):
+    os.mkdir('result')
 
 def fallback(msg):
     print(msg)
@@ -68,6 +72,9 @@ def check_ip(ip):
         result = requests.get('https://scan.sudoer.net', proxies={'https': f'socks5://127.0.0.1:'+port}, timeout=2)
         ps.kill()
         print(ip,':',1000*(time.time()-t), 'ms')
+        with open(f'result/{result_name}', 'a') as f:
+            f.write(f'{1000*(time.time()-t):.2f} {ip}\n')
+
     except Exception as e:
         ps.kill()
         print(ip, 'failed (timeout)') 
