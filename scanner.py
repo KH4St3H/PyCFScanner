@@ -1,3 +1,8 @@
+# Author: Mehrshad
+# Usage: python .\scanner.py .\config_file C:\Path\to\nekoray_core.exe
+# dependecies: pysocks, requests
+# original bash code: https://github.com/MortezaBashsiz/CFScanner
+
 import os
 import re
 import sys
@@ -6,7 +11,6 @@ import requests
 import subprocess
 import time
 
-from pathlib import Path
 from ipaddress import IPv4Network
 from multiprocessing.pool import ThreadPool
 
@@ -20,7 +24,6 @@ cloudflare_ASNs = ['AS209242']
 cloudflare_ok_list = [31, 45, 66, 80, 89, 103, 104, 108, 141, 
     147, 154, 159, 168, 170, 185, 188, 191, 
     192, 193, 194, 195, 199, 203, 205, 212]
-cloudflare_ok_list = [45]
 parser = argparse.ArgumentParser(
     prog = 'CFScanner',
     description = 'Find working cloudflare IP addresses for V2Ray clients',
@@ -41,11 +44,12 @@ def fallback(msg):
 def check_ip(ip):
     ip = str(ip)
     try:
-        result = subprocess.check_output('curl -s -w "%{http_code}\n" --tlsv1.2 -servername fronting.sudoer.net -H "Host: fronting.sudoer.net" --resolve fronting.sudoer.net:443:"' + str(ip) + '" https://fronting.sudoer.net', shell=True, timeout=2)
-        print(result)
+        result = subprocess.check_output('curl -s -w "%{http_code}" --tlsv1.2 -m 2 -servername fronting.sudoer.net -H "Host: fronting.sudoer.net" --resolve fronting.sudoer.net:443:"' + ip + '" https://fronting.sudoer.net', shell=True, timeout=2)
     except Exception:
+        print(ip, 'failed')
         return False
     if b'200' not in result:
+        print(ip, 'failed')
         return False
     
     with open('config.json.temp', 'r') as config_template:
@@ -56,17 +60,18 @@ def check_ip(ip):
         config = config.replace('CFPORTCFPORT', config_data['Port'])
         config = config.replace('ENDPOINTENDPOINT', config_data['path'])
         config = config.replace('RANDOMHOST', config_data['serverName'])
-        with open(f'configs/config.json.{ip}', 'w') as new_config:
+        with open(f'configs/{ip}.config.json', 'w') as new_config:
             new_config.write(config)
-    subprocess.Popen([v2ray_path, '-c', f'configs/config.json.{ip}'], stdout=subprocess.DEVNULL)
+    ps = subprocess.Popen([v2ray_path, 'run', '-c', f'configs/{ip}.config.json'], stdout=subprocess.DEVNULL)
     try:
         t = time.time()
         result = requests.get('https://scan.sudoer.net', proxies={'https': f'socks5://127.0.0.1:'+port}, timeout=2)
+        ps.kill()
         print(ip,':',1000*(time.time()-t), 'ms')
     except Exception as e:
+        ps.kill()
+        print(ip, 'failed (timeout)') 
         return False
-
-
 
 
 def get_CIDRs():
@@ -116,7 +121,7 @@ def main():
     if not os.path.exists(v2ray_path):
         fallback('v2ray executable does not exists')
 
-    threads = args.threads
+    threads = int(args.threads)
 
     get_CIDRs()
     find_working_ips()

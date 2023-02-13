@@ -1,4 +1,6 @@
-configs/*
+configs/
 *.swp
 *.real
 __pycache__/
+test.py
+config.real
