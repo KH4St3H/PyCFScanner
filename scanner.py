@@ -97,14 +97,27 @@ def get_CIDRs():
             print('[*] error retrieving asnlookup.com')
             continue
 
+def sort_result():
+    try:
+        lines = []
+        with open(f'result/{result_name}', 'r+') as f:
+            lines = f.read().strip('\n').split('\n')
+        with open(f'result/{result_name}', 'w+') as f:
+            f.write('\n'.join(sorted(lines, key=lambda x: float(x.split(' ')[0])))+'\n')
+    except Exception as e:
+        print('no result found')
+
 def find_working_ips():
     for subnet in subnet_list:
         if int(subnet[:subnet.find('.')]) not in cloudflare_ok_list:
             continue
         with ThreadPool(threads) as pool:
-            for result in pool.map(check_ip, list(IPv4Network(subnet))):
-                print(result)
-
+            try:
+                for result in pool.map(check_ip, list(IPv4Network(subnet))):
+                    pass
+            except KeyboardInterrupt as e:
+                break
+            sort_result()
 
 def parse_config(file_name):
     global config_data
